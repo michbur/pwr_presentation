@@ -5,30 +5,32 @@
 \usepackage{amsmath}
 \usepackage{natbib}
 \usepackage{graphicx}
-\usepackage{array,booktabs,colortbl}
+\usepackage{array,booktabs,tabularx,colortbl}
 \usepackage{epstopdf}
 \usepackage{colortbl, xcolor}
-\usepackage{url}
 
-\setlength\abovecaptionskip{-2pt}
-\setbeamertemplate{caption}{\raggedright\insertcaption\par}
 
 \title{n-gram analysis of biological sequences in R}
 \date{}
-\author{Micha\l{} Burdukiewicz\inst{1}, Piotr Sobczyk\inst{2}, Ma\l{}gorzata Kotulska\inst{3}, Pawe\l{} Mackiewicz\inst{1}}
-\institute{\textsuperscript{1}University of Wroc\l{}aw, Department of Genomics, 
-
-\textsuperscript{2}Wroc\l{}aw University of Science and Technology, Faculty of Pure and Applied Mathematics,
-
-\textsuperscript{3}Wroc\l{}aw University of Science and Technology, Department of Biomedical Engineering
-}
+\author{Micha\l{} Burdukiewicz}
 
 \begin{document}
   \maketitle
   \section{Introduction}
-  
+
+\begin{frame}{Tools of the trade: R}
+
+\textbf{R} is robust high-level programming language for data analysis.
+\begin{itemize}
+\item Controls full workflow: from data collection till report generation.
+\item Interfaces for high performance computing and data storage systems.
+\item Easy generation of web servers.
+\end{itemize}
+
+\end{frame}  
+
 \begin{frame}{biogram package}
-<<knitrIntro, echo = FALSE, message=FALSE,warning=FALSE>>=
+<<echo = FALSE, message=FALSE,warning=FALSE>>=
 source("my_ggplot_theme.R")
 
 library(biogram)
@@ -100,81 +102,106 @@ dat_nondeg <- do_pca(freq_nondeg)
 @
 \textit{biogram}: the \textbf{R} package for the n-gram analysis of biological sequences.
 
-n-grams: features describing the sequence.
+n-grams: composite features describing the sequence.
 
 biogram workflow:
 \begin{enumerate}
 \item Extract n-grams.
-\item Change an alphabet.
+\item Change composition of n-grams
 \item Filter n-grams.
 \end{enumerate}
 
-\end{frame}  
+n-grams efficiently and transparently model relationships between protein and its function/structure using only primary sequence.
 
-\begin{frame}{Biological sequences}
-Long chains of amino acids (proteins) or nucleotides (RNA or DNA).
+\end{frame}    
+  
+  \section{Amyloids}
+  
+  \begin{frame}{}
+  <<knitrIntro, echo = FALSE, message=FALSE,warning=FALSE>>=
+source("my_ggplot_theme.R")
 
-% http://www.uniprot.org/uniprot/Q8I0K7
-% https://www.sciencenews.org/article/scorpion-genome-decoded
-\vfill
+library(dplyr)
+library(reshape2)
+library(xtable)
+library(biogram)
 
-Sample protein sequence:
+group2df <- function(group_list, caption = NULL, label = NULL) {
+  tab <- data.frame(Groups = sapply(group_list, function(i)
+    paste0(toupper(sort(i)), collapse = ", ")))
+  tab <- cbind(ID = 1L:nrow(tab), tab)
+  rws <- seq(1, nrow(tab) - 1, by = 2)
+  col <- rep("\\rowcolor[gray]{0.85}", length(rws))
+  colnames(tab) <- c("Subgroup ID", "Amino acids")
+  res <- print(xtable(tab, caption = caption, label = label), 
+               include.rownames = FALSE, booktabs = TRUE,
+               add.to.row = list(pos = as.list(rws), command = col), print.results = FALSE, 
+               caption.placement = "top", sanitize.text.function = identity, 
+               sanitize.rownames.function = identity)
+  #res
+  print(xtable(tab))
+}  
+  
+amyloids_plot <- read.csv("amyloid_plot_data.csv")
 
-\texttt{MRKLYCVLLLSAFEFTYMINFGRGQNYWEHPYQKSDVYHP}
+levels(amyloids_plot[["et"]]) <- c("Best-performing reduced alphabet", 
+                                   "Reduced alphabet", "Full alphabet", 
+                                   "Standard reduced alphabet")
 
-\texttt{INEHREHPKEYQYPLHQEHTYQQEDSGEDENTLQHAYPID}
 
-\texttt{HEGAEPAPQEQNLFSSIEIV...}
+amyloids_plot[["len_range"]] <- factor(amyloids_plot[["len_range"]], 
+                                       levels = c("Test peptide length: 6 ", "Test peptide length: 7-10", 
+                                                  "Test peptide length: 11-15", "Test peptide length: 16-25"))
 
-\end{frame}  
+subdat <- filter(amyloids_plot, pos == "Training peptide length: 6")
 
-\begin{frame}{Biological sequences}
+best_enc <- list(c("G"), 
+                 c("K", "P", "R"),
+                 c("I", "L", "V"),
+                 c("F", "W", "Y"),
+                 c("A", "C", "H", "M"),
+                 c("D", "E", "N", "Q", "S", "T"))
+names(best_enc) <- 1L:6
 
-\begin{figure}
-\includegraphics[width=0.55\textwidth]{static_figures/plasmodium.jpg}
-\caption{\tiny \textit{Plasmodium falciparum}. Source: \url{http://www.protists.ensembl.org}}
+
+@
+  
+    Proteins associated with various neurodegenerative disorders (e.g., Alzheimer's, Parkinson's, Creutzfeldta-Jakob's diseases) creating harmful aggregates.
+    
+    \begin{figure} 
+\includegraphics[width=0.7\textwidth]{static_figure/amyloid_aggregates.jpg}
 \end{figure}
 
-Protein of \textit{Plasmodium falciparum}:
-
-\texttt{MRKLYCVLLLSAFEFTYMINFGRGQNYWEHPYQKSDVYHP}
-
-\texttt{INEHREHPKEYQYPLHQEHTYQQEDSGEDENTLQHAYPID}
-
-\texttt{HEGAEPAPQEQNLFSSIEIV...}
-\end{frame}  
-
-\begin{frame}{Biological sequences}
-
-\begin{figure}
-\includegraphics[width=0.55\textwidth]{static_figures/plasmodium.jpg}
-\caption{\tiny \textit{Plasmodium falciparum}. Source: \url{http://www.protists.ensembl.org}}
+Amyloid aggregates (red) around neurons (green). Strittmatter Laboratory, Yale University
+  \end{frame}
+  
+  \begin{frame}{}
+  
+  The aggregation of amyloids is initiated by 6- to 15-residue segments called hot spots, diverse subsequences that form unique zipper-like $\beta$-structures.
+\begin{figure} 
+\includegraphics[width=0.9\textwidth]{static_figure/zipper_structure.jpg}
 \end{figure}
 
-Protein of \textit{Plasmodium falciparum}, malaria-causing parasite:
+\citet{sawaya_atomic_2007}
+\end{frame}
+  
+  
+\section{Amyloidogenic motifs}
 
-\texttt{MRKLYCVLLLSAFEFTYMINFGRGQNYWEHPYQKSDVYHP}
+\begin{frame}
+  Which motifs (countinous or gapped subsequences of amino acids) are associated with amyloidogenicity?
+  \end{frame}
+  
+      \begin{frame}
+\begin{figure} 
+\includegraphics[width=0.95\textwidth]{static_figure/ngram1.eps}
+\end{figure}
+  \end{frame}
 
-\texttt{INEHREHPKEYQYPLHQEHTYQQEDSGEDENTLQHAYPID}
+\begin{frame}{n-grams}
+n-grams (k-tuples) are vectors of $n$ characters derived from input sequence(s). 
 
-\texttt{HEGAEPAPQEQNLFSSIEIV...}
-\end{frame}  
-
-
-\begin{frame}{Biological sequences}
-
-Signal peptide (red): n-terminal amino acid sequence directing proteins to the endomembrane system and next to extracellular localizations.
-
-\texttt{\textcolor{red}{MRKLYCVLLLSAFEFTYMINFGRGQ}NYWEHPYQKSDVYHP}
-
-\texttt{INEHREHPKEYQYPLHQEHTYQQEDSGEDENTLQHAYPID}
-
-\texttt{HEGAEPAPQEQNLFSSIEIV...}
-
-\end{frame}  
-
-\begin{frame}{Biological sequences}
-<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4.5>>=
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=5,results='asis'>>=
 seqs <- read.fasta("./data/seqs.fasta", seqtype = "AA")
 seq_df <- lapply(seqs, function(i) i[1L:27]) %>% 
   do.call(rbind, .) %>% 
@@ -192,33 +219,9 @@ mseq_df <- melt(seq_df, id.vars = "name",
   mutate(sig = pos == "25") %>% 
   inner_join(data.frame(aa = a()[-1], hydr = aaprop[2, ]))
 
-ggplot(mseq_df, aes(x = pos, y = name, label = aa, fill = aa)) +
-  #geom_point(aes(x = pos, y = name, shape = sig), size = 7, color = "red", stroke = 1) +
-  geom_tile() +
-  geom_text(size = 5) +
-  scale_x_continuous("Position") + 
-  scale_y_discrete("") +
-  scale_fill_discrete(guide = FALSE) +
-  #scale_shape_manual(guide = FALSE, values = c(NA, 21)) +
-  geom_vline(xintercept = 24.5, color = "black", size = 2) +
-  my_theme +
-  theme(axis.text = element_text(size=12),
-        panel.grid.major = element_line(color="NA", 
-                                        linetype = "dashed", size = 0.5))
-@
-
-Common patterns are hard to identify.
-\end{frame}  
-
-\section{n-grams}
-
-\begin{frame}{n-grams}
-n-grams (k-tuples) are vectors of $n$ characters derived from input sequence(s). 
-
-<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=5,results='asis'>>=
 sample_seq <- as.matrix(seq_df[, 2L:10])
 colnames(sample_seq) <- paste0("P", 1L:ncol(sample_seq))
-rownames(sample_seq) <- c("PF", "HS", "SL", "SP")
+rownames(sample_seq) <- paste0("S", 1L:4)
 sample_seq_dat <- data.frame(sample_seq)
 cat(print_bt(sample_seq_dat))
 @
@@ -305,162 +308,14 @@ Problems:
 \end{itemize}
 \end{frame}
 
-\begin{frame}{n-gram counts}
-<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=5,results='asis'>>=
-L <- 5
-m <- 20
-m2 <- 4
-n <- 1:5
-n_max <- L*m^n
-n_max2 <- L*m2^n
-dat <- data.frame(n = c(n, n), n_max = c(n_max, n_max2), m = c(rep(m, 5), rep(m2, 5)))
-dat[["m"]] <- factor(dat[["m"]])
-
-ggplot(filter(dat, m == 20), aes(x = n, y = n_max, color = m, label = formatC(n_max, digits = 4))) +
-  geom_text(x = 1, y = 7, color = "black", 
-            label = as.character(TeX("$n_{max} = m^n$")), parse = TRUE, size = 6) +
-  geom_line(linetype="dotted", size=1.5) +
-  geom_point(size=7, shape=16) +
-  geom_text(size = 6, vjust = -1.5, hjust = -0.05) +
-  coord_cartesian(ylim = c(100, 8e7), xlim = c(0.5, 5.7)) +
-  scale_x_continuous("n (n-gram length)", breaks = 0L:5) +
-  scale_y_continuous(TeX("$n_{max}$ (number of possible n-grams)"), trans = "log10") +
-  scale_color_manual("m (alphabet length)", values = "maroon1") +
-  my_theme
-@
-\end{frame}
-
-\begin{frame}{n-gram counts}
-<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=5,results='asis'>>=
-full_ngram_table <- count_multigrams(c(1, 2), c(0, 0), u = a()[-1], as.matrix(seq_df[, -1])) %>% 
-  as.matrix %>% 
-  as.data.frame
-
-data.frame(full_ngram_table[1L:5], `...` = rep("...", 4), full_ngram_table[110L:112], `...` = rep("...", 4),
-           row.names = c("PF", "HS", "SL", "SP"), check.names = FALSE) %>% 
-  print_bt %>% 
-  cat
-@
-
-The sparcity of the n-gram count matrix grows with $n$.
-\end{frame}
-
-\begin{frame}{sparse matrix representation}
-<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=5,results='asis'>>=
-get_mb <- function(x) {
-  y <- x
-  class(y) <- "object_size"
-  format(y, "Mb")
-}
-
-slam_summary <- mutate(slam_summary, size_mb = get_mb(size)) %>% 
-  group_by(method, ngrams) %>% 
-  mutate(size_mb = ifelse(size == max(size), size_mb, ""))
-
-ggplot(slam_summary, aes(x = n_seq, y = size, color = method, label = size_mb)) +
-  geom_point() +
-  geom_text(hjust = 1.1) +
-  scale_x_continuous("Number of sequences") +
-  scale_y_continuous("Size [bytes]") +
-  scale_color_manual("Matrix type", values = c("cadetblue", "maroon1"), labels = c("slam", "base")) +
-  facet_wrap(~ ngrams, ncol = 1, scales = "free_y") +
-  my_theme
-@
-\end{frame}
-
-
-\section{Reduction of the amino acid alphabet}
-
-\begin{frame}{Properites of amino acids}
-<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4>>=
-hydr_df <- data.frame(aa = a()[-1], hydr = aaprop[2, ])
-
-ggplot(hydr_df, aes(x = aa, y = hydr)) + 
-  geom_bar(stat = "identity") + 
-  scale_x_discrete("Amino acid") +
-  scale_y_continuous("Hydrophobicity") +
-  my_theme
-@
-
-Amino acids may be described using their physicochemical properites.
-
-\end{frame}
-
-\begin{frame}{Properites of amino acids}
-
-<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=5>>=
-ggplot(filter(mseq_df, pos != 1), aes(x = pos, y = hydr, group = name)) +
-  geom_point() +
-  geom_line() +
-  #geom_point(aes(x = pos, y = name, shape = sig), size = 7, color = "red", stroke = 1) +
-  scale_x_continuous("Position") + 
-  scale_y_continuous("Hydrophobicity") +
-  scale_color_discrete(guide = FALSE) +
-  geom_smooth() +
-  my_theme +
-  facet_wrap(~ name)
-@
-\end{frame} 
-
-\begin{frame}{Reduction of the alphabet}
-<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=5,results='asis'>>=
-L <- 5
-m <- 20
-m2 <- 4
-n <- 1:5
-n_max <- L*m^n
-n_max2 <- L*m2^n
-dat <- data.frame(n = c(n, n), n_max = c(n_max, n_max2), m = c(rep(m, 5), rep(m2, 5)))
-dat[["m"]] <- factor(dat[["m"]])
-
-ggplot(dat, aes(x = n, y = n_max, color = m, label = formatC(n_max, digits = 4))) +
-  geom_text(x = 1, y = 7, color = "black", 
-            label = as.character(TeX("$n_{max} = m^n$")), parse = TRUE, size = 6) +
-  geom_line(linetype="dotted", size=1.5) +
-  geom_point(size=7, shape=16) +
-  geom_text(size = 6, vjust = -1.5, hjust = -0.05) +
-  coord_cartesian(ylim = c(100, 8e7), xlim = c(0.5, 5.7)) +
-  scale_x_continuous("n (n-gram length)", breaks = 0L:5) +
-  scale_y_continuous(TeX("$n_{max}$ (number of possible n-grams)"), trans = "log10") +
-  scale_color_manual("m (alphabet length)", values = c("cadetblue", "maroon1")) +
-  my_theme
-@
-\end{frame}
-
-\begin{frame}{Reduction of the alphabet}
-<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4.5,results='asis'>>=
-p1 <- plot_pca(dat_nondeg) + ggtitle("Unreduced amino acid alphabet")
-p2 <- plot_pca(dat_deg) + ggtitle("Reduced amino acid alphabet")
-
-print(p1)
-@
-PCA analysis of amino acid frequency in signal peptides.
-\end{frame}
-
-\begin{frame}{Reduction of the alphabet}
-\begin{table}[ht]
-\centering
-\begin{tabular}{ll}
-  \toprule
-Group & Amino acids \\ 
-  \midrule
-I & D, E, H, K, N, Q, R \\ 
-   \rowcolor[gray]{0.85}II & G, P, S, T, Y \\ 
-  III & F, I, L, M, V, W \\ 
-   \rowcolor[gray]{0.85} IV & A, C \\ 
-   \bottomrule
-\end{tabular}
-\end{table}
-\end{frame}
- 
-\begin{frame}{Reduction of the alphabet}
-<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4.1,results='asis'>>=
-print(p2)
-@
-PCA analysis of amino acid frequency in signal peptides. Reduced amino acid alphabet groups together signal peptides belonging to \textit{Plasmodiidae} and other eukaryotes.
-\end{frame}
 
 \section{Filtering n-grams}
+
+    \begin{frame}
+\begin{figure} 
+\includegraphics[width=0.95\textwidth]{static_figure/ngram1.eps}
+\end{figure}
+  \end{frame}
 
 
 \begin{frame}{Permutation Test}
@@ -513,14 +368,14 @@ $N$: number of permutations.
   
 \begin{table}[!htb]
     \begin{minipage}{.5\linewidth}
-    \caption{IG: \Sexpr{round(nonperm_igs[1], 4)}}
+    \caption{IG: \textcolor{blue}{\Sexpr{round(nonperm_igs[1], 4)}}}
       \centering
 <<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4,results='asis'>>=
 cat(print_bt2(tab1))
 @
     \end{minipage}%
     \begin{minipage}{.5\linewidth}
-    \caption{IG: \Sexpr{round(nonperm_igs[2], 4)}}
+    \caption{IG: \textcolor{red}{\Sexpr{round(nonperm_igs[2], 4)}}}
       \centering
 <<echo = FALSE, message=FALSE,warning=FALSE,fig.height=4,results='asis'>>=
 cat(print_bt2(tab2))
@@ -547,7 +402,7 @@ ig_data <- data.frame(x = as.numeric(rownames(attr(ig1, "plot_data"))),
 
 ig_legend <- g_legend(ggplot(data = ig_data, mapping = aes(x = x, y = y, color = panel)) +
   geom_line(size = 1.5) +
-  scale_color_manual("", values = c("maroon1", "cadetblue"), 
+  scale_color_manual("", values = c("blue", "red"), 
                        labels = c("n-gram I", "n-gram II")) +
   my_theme)
 
@@ -555,20 +410,30 @@ ig_plot_prob <- ggplot(data = filter(ig_data, panel == "Probability"), mapping =
   geom_freqpoly(stat = "identity") +
   xlab("Number of cases with n-gram=1 and target=1") + 
   ylab("Probability") +
-  geom_vline(xintercept = 25, color = "maroon1", size = 1.5) +
-  geom_vline(xintercept = 41, color = "cadetblue", size = 1.5) +
+  geom_vline(xintercept = 25, color = "blue", size = 1.5) +
+  geom_vline(xintercept = 41, color = "red", size = 1.5) +
   my_theme
 
 ig_plot_ig <- ggplot(data = filter(ig_data, panel == "Information Gain"), mapping = aes(x = x, y = y)) + 
   geom_freqpoly(stat = "identity") + 
   xlab("Number of cases with feature=1 and target=1") + 
   ylab("Information Gain") +
-  geom_vline(xintercept = 25, color = "maroon1", size = 1.5) +
-  geom_vline(xintercept = 41, color = "cadetblue", size = 1.5) +
+  geom_vline(xintercept = 25, color = "blue", size = 1.5) +
+  geom_vline(xintercept = 41, color = "red", size = 1.5) +
   my_theme
 
 grid.arrange(ig_plot_prob, ig_plot_ig, ig_legend, ncol = 1, heights = c(0.47, 0.47, 0.06))
 @
+\end{frame}
+
+\begin{frame}{Sensitivity of QuiPT}
+Simulation:
+\begin{enumerate}
+\item Generating random sequences of different lengths.
+\item Adding set of informative motifs to the half of sequences.
+\item Performing QuiPT.
+\end{enumerate}
+
 \end{frame}
 
 \begin{frame}{Sensitivity of QuiPT}
@@ -585,7 +450,7 @@ tm_pvals <- filter(sim_quipt, criterion == "ig") %>%
 ggplot(tm_pvals, aes(x = l_seq, y = p.value, color = as.factor(motif_len))) +
   geom_boxplot() +
   facet_wrap( ~ n_seq) +
-  scale_y_continuous("p-value") +
+  scale_y_continuous("p-value of informative motifs") +
   scale_x_discrete("Sequence length") +
   scale_color_manual("", values = c("maroon1", "cadetblue"), labels = c("2-gram", "3-gram")) +
   my_theme
@@ -594,20 +459,520 @@ ggplot(tm_pvals, aes(x = l_seq, y = p.value, color = as.factor(motif_len))) +
 QuiPT works best for large data sets of short sequences.
 
 \end{frame}
+  
+\section{Validation of models}
+
+    \begin{frame}
+\begin{figure} 
+\includegraphics[width=0.95\textwidth]{static_figure/ngram1.eps}
+\end{figure}
+  \end{frame}
+
+\begin{frame}{Cross-validation}
+  <<echo = FALSE, message=FALSE,warning=FALSE,fig.align='center',fig.width=14,fig.height=7>>=
+
+ggplot(subdat, aes(x = len_range, y = AUC_mean)) +
+  geom_boxplot(outlier.color = NA, outlier.shape = 16, outlier.size = 5, color = NA, fill = NA) +
+  geom_point(data = filter(subdat, et == "Full alphabet"), 
+             aes(x = len_range, y = AUC_mean, color = et, shape = et), size = 5) +
+  scale_x_discrete("") +
+  scale_y_continuous("Mean AUC") +
+  scale_shape_manual("", values = c(16, 16, 15, 15)[3], drop = TRUE) +
+  scale_color_manual("", values = c("red", "grey", "green", "blue")[3], drop = TRUE) +
+  guides(color = guide_legend(nrow = 2), shape = guide_legend(nrow = 2)) + 
+  #facet_wrap(~ pos, nrow = 3) +
+  ggtitle("Training peptide length: 6") + 
+  my_theme + 
+  coord_flip()
+
+@
+\end{frame}
+
+\section{Reduced amino acid alphabets}
+  
+\begin{frame}
+  Does amyloidogenicity depend on the exact sequence of amino acids?
+  \end{frame}
+
+\begin{frame}{Standard reduced amino acid alphabets}
+To date, several reduced amino acid alphabets have been proposed, which have been applied to (among others) protein folding and protein structure prediction~\citep{kosiol_new_2004, melo_accuracy_2006}.
+  \end{frame}
+  
+  \begin{frame}{n-gram counts using reduced alphabets}
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=5,results='asis'>>=
+L <- 5
+m <- 20
+m2 <- 4
+n <- 1:5
+n_max <- L*m^n
+n_max2 <- L*m2^n
+dat <- data.frame(n = c(n, n), n_max = c(n_max, n_max2), m = c(rep(m, 5), rep(m2, 5)))
+dat[["m"]] <- factor(dat[["m"]])
+
+ggplot(filter(dat, m == 20), aes(x = n, y = n_max, color = m, label = formatC(n_max, digits = 4))) +
+  geom_text(x = 1, y = 7, color = "black", 
+            label = as.character(TeX("$n_{max} = m^n$")), parse = TRUE, size = 6) +
+  geom_line(linetype="dotted", size=1.5) +
+  geom_point(size=7, shape=16) +
+  geom_text(size = 6, vjust = -1.5, hjust = -0.05) +
+  coord_cartesian(ylim = c(100, 8e7), xlim = c(0.5, 5.7)) +
+  scale_x_continuous("n (n-gram length)", breaks = 0L:5) +
+  scale_y_continuous(TeX("$n_{max}$ (number of possible n-grams)"), trans = "log10") +
+  scale_color_manual("m (alphabet length)", values = "maroon1") +
+  my_theme
+@
+\end{frame}
+
+\begin{frame}{n-gram counts using reduced alphabets}
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=5,results='asis'>>=
+full_ngram_table <- count_multigrams(c(1, 2), c(0, 0), u = a()[-1], as.matrix(seq_df[, -1])) %>% 
+  as.matrix %>% 
+  as.data.frame
+
+data.frame(full_ngram_table[1L:5], `...` = rep("...", 4), full_ngram_table[110L:112], `...` = rep("...", 4),
+           row.names = c("PF", "HS", "SL", "SP"), check.names = FALSE) %>% 
+  print_bt %>% 
+  cat
+@
+
+The sparcity of the n-gram count matrix grows with $n$.
+\end{frame}
+
+\begin{frame}{sparse matrix representation}
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.height=5,results='asis'>>=
+get_mb <- function(x) {
+  y <- x
+  class(y) <- "object_size"
+  format(y, "Mb")
+}
+
+slam_summary <- mutate(slam_summary, size_mb = get_mb(size)) %>% 
+  group_by(method, ngrams) %>% 
+  mutate(size_mb = ifelse(size == max(size), size_mb, ""))
+
+ggplot(slam_summary, aes(x = n_seq, y = size, color = method, label = size_mb)) +
+  geom_point() +
+  geom_text(hjust = 1.1) +
+  scale_x_continuous("Number of sequences") +
+  scale_y_continuous("Size [bytes]") +
+  scale_color_manual("Matrix type", values = c("cadetblue", "maroon1"), labels = c("slam", "base")) +
+  facet_wrap(~ ngrams, ncol = 1, scales = "free_y") +
+  my_theme
+@
+\end{frame}
+  
+    \begin{frame}{Standard reduced amino acid alphabets}
+\begin{figure} 
+\includegraphics[width=0.95\textwidth]{static_figure/ngram2.eps}
+\end{figure}
 
 
-\section{Summary and conclusion}
+  \end{frame}
 
-\begin{frame}{Summary} 
-\textit{biogram}: the \textbf{R} package for the n-gram analysis of biological sequences.
 
-biogram workflow:
-\begin{enumerate}
-\item Extract n-grams (\texttt{count\_ngrams()} and \texttt{count\_multigrams()}).
-\item Change an alphabet (\texttt{calc\_ed()} and \texttt{calc\_si()}).
-\item Filter n-grams (\texttt{test\_features()}).
-\end{enumerate}
-\end{frame} 
+    \begin{frame}{Cross-validation}
+  <<echo = FALSE, message=FALSE,warning=FALSE,fig.align='center',fig.width=14,fig.height=7>>=
+ggplot(subdat, aes(x = len_range, y = AUC_mean)) +
+  geom_boxplot(outlier.color = NA, outlier.shape = 16, outlier.size = 5, color = NA, fill = NA) +
+  geom_point(data = filter(subdat, et %in% c("Full alphabet", "Standard reduced alphabet")), 
+             aes(x = len_range, y = AUC_mean, color = et, shape = et), size = 5) +
+  scale_x_discrete("") +
+  scale_y_continuous("Mean AUC") +
+  scale_shape_manual("", values = c(16, 16, 15, 15)[3L:4], drop = TRUE) +
+  scale_color_manual("", values = c("red", "grey", "green", "blue")[3L:4], drop = TRUE) +
+  guides(color = guide_legend(nrow = 2), shape = guide_legend(nrow = 2)) + 
+  #facet_wrap(~ pos, nrow = 3) +
+  ggtitle("Training peptide length: 6") + 
+  my_theme + 
+  coord_flip()
+
+@
+
+Standard reduced amino acid alphabets do not enhance discrimination between amyloidogenic and non-amyloidogenic proteins.
+  
+  \end{frame}
+
+
+\begin{frame}{Novel reduced amino acid alphabets}
+
+\begin{itemize}
+\item 17 measures handpicked from AAIndex database: 
+  \begin{itemize}
+    \item size of residues, 
+    \item hydrophobicity, 
+    \item solvent surface area, 
+    \item frequency in $\beta$-sheets,
+    \item contactivity.
+  \end{itemize}
+  \item 524 284 amino acid reduced alphabets with different level of amino acid alphabet reduction (three to six amino acid groups).
+  \end{itemize}
+
+    \end{frame}
+  
+    \begin{frame}{Novel reduced amino acid alphabets}
+\begin{figure} 
+\includegraphics[width=0.95\textwidth]{static_figure/ngram3.eps}
+\end{figure}
+  \end{frame}
+
+
+
+\begin{frame}{Cross-validation}
+  <<echo = FALSE, message=FALSE,warning=FALSE,fig.align='center',fig.width=14,fig.height=7>>=
+subdat2 <- droplevels(filter(subdat, et != "Best-performing reduced alphabet"))
+
+ggplot(subdat2, aes(x = len_range, y = AUC_mean)) +
+  geom_boxplot(outlier.color = "grey", outlier.shape = 16, outlier.size = 5, color = "black", fill = "white") +
+  geom_point(data = filter(subdat2, et %in% c("Full alphabet", "Standard reduced alphabet")), 
+             aes(x = len_range, y = AUC_mean, color = et, shape = et), size = 5) +
+  scale_x_discrete("") +
+  scale_y_continuous("Mean AUC") +
+  scale_shape_manual("", values = c(16, 16, 15, 15)[2L:4], drop = FALSE) +
+  scale_color_manual("", values = c("red", "grey", "green", "blue")[2L:4], drop = FALSE) +
+  guides(color = guide_legend(nrow = 2), shape = guide_legend(nrow = 2)) + 
+  #facet_wrap(~ pos, nrow = 3) +
+  ggtitle("Training peptide length: 6") + 
+  my_theme + 
+  coord_flip()
+
+@
+  \tiny
+Hinges of boxes correspond to 
+the 0.25 and 0.75 quartiles. The bar inside the box represents the median. The 
+gray circles correspond to the reduced alphabets with the AUC outside the 0.95 
+confidence interval.
+
+  
+  \end{frame}
+
+\begin{frame}{Ranking alphabets}
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.align='center',fig.width=14,fig.height=7>>=
+
+set.seed(3)
+exdat <- data.frame(
+  alph = paste0("A", 1L:5), 
+  c1 = 0.7 + runif(5)/5,
+  c2 = 0.75 + runif(5)/5,
+  c3 = 0.65 + runif(5)/5
+) %>% 
+  melt %>% 
+  group_by(variable) %>% 
+  mutate(r = rank(value)) %>% 
+  ungroup
+
+best_alph <- group_by(exdat, alph) %>%
+  summarise(cr = sum(r)) %>%
+  arrange(desc(cr)) %>% 
+  slice(1) %>% 
+  select(alph) %>% 
+  unlist %>% 
+  as.character
+
+exdat <- mutate(exdat, best = alph == best_alph)
+
+ggplot(exdat, aes(y = variable, x = value, color = alph)) +
+  geom_point(size = 7) +
+  scale_x_continuous("AUC") +
+  scale_y_discrete("Category", labels = paste0("Category ", 1L:3)) +
+  scale_color_discrete("Alphabet") +
+  my_theme
+
+@
+\end{frame}
+
+
+\begin{frame}{Ranking alphabets}
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.align='center',fig.width=14,fig.height=7>>=
+ggplot(exdat, aes(y = variable, x = value, color = alph, label = (r - 6)*-1)) +
+  geom_text(size = 7) +
+  scale_x_continuous("AUC") +
+  scale_y_discrete("Category", labels = paste0("Category ", 1L:3)) +
+  scale_color_discrete("Alphabet") +
+  scale_shape_discrete("Best reduced alphabet") +
+  my_theme
+
+
+@
+We rank alphabets separately in all length categories assuming the rank 1 for the best AUC, rank 2 for the second best AUC and so on.
+
+
+\end{frame}
+
+
+
+\begin{frame}{Ranking alphabets}
+<<echo = FALSE, message=FALSE,warning=FALSE,fig.align='center',fig.width=14,fig.height=7>>=
+ggplot(exdat, aes(y = variable, x = value, color = alph, shape = best)) +
+  geom_point(size = 7) +
+  scale_x_continuous("AUC") +
+  scale_y_discrete("Category", labels = paste0("Category ", 1L:3)) +
+  scale_color_discrete("Alphabet") +
+  scale_shape_discrete("Best reduced alphabet") +
+  my_theme
+
+
+@
+The best-performing alphabet has the lowest sum of ranks.  
+
+\end{frame}
+
+  
+    \begin{frame}{The best-perfoming reduced alphabet}
+  <<echo = FALSE, message=FALSE,warning=FALSE,fig.align='center',fig.width=14,fig.height=7>>=
+
+ggplot(subdat, aes(x = len_range, y = AUC_mean)) +
+  geom_boxplot(outlier.color = "grey", outlier.shape = 16, outlier.size = 5) +
+  geom_point(data = filter(subdat, et != "Reduced alphabet"), 
+             aes(x = len_range, y = AUC_mean, color = et, shape = et), size = 5) +
+  scale_x_discrete("") +
+  scale_y_continuous("Mean AUC") +
+  scale_shape_manual("", values = c(16, 16, 15, 15), drop = FALSE) +
+  scale_color_manual("", values = c("red", "grey", "green", "blue"), drop = FALSE) +
+  guides(color = guide_legend(nrow = 2), shape = guide_legend(nrow = 2)) + 
+  #facet_wrap(~ pos, nrow = 3) +
+  ggtitle("Training peptide length: 6") + 
+  my_theme + 
+  coord_flip()
+@
+  \end{frame}
+
+     \begin{frame}{The best-perfoming reduced alphabet}
+   <<echo = FALSE, message=FALSE,warning=FALSE,fig.align='center',fig.width=14,fig.height=7>>=
+# cat(group2df(best_enc, caption = "The best-performing reduced alphabet."))
+ @
+   \begin{table}[ht]
+\centering
+\begin{tabular}{rl}
+  \toprule
+Subgroup ID & Amino acids \\ 
+  \midrule
+  1 & G \\ 
+   \rowcolor[gray]{0.85}  2 & K, P, R \\ 
+    3 & I, L, V \\ 
+   \rowcolor[gray]{0.85}  4 & F, W, Y \\ 
+    5 & A, C, H, M \\ 
+   \rowcolor[gray]{0.85}  6 & D, E, N, Q, S, T \\ 
+   \bottomrule
+\end{tabular}
+\end{table}
+   
+   \end{frame}
+
+     \begin{frame}{The best-perfoming reduced alphabet}
+   \begin{table}[ht]
+\centering
+\begin{tabular}{rl}
+  \toprule
+Subgroup ID & Amino acids \\ 
+  \midrule
+  1 & G \\ 
+   \rowcolor[gray]{0.85}  2 & K, P, R \\ 
+   \rowcolor{blue!20} 3 & I, L, V \\ 
+   \rowcolor{blue!20}  4 & F, W, Y \\ 
+    5 & A, C, H, M \\ 
+   \rowcolor[gray]{0.85}  6 & D, E, N, Q, S, T \\ 
+   \bottomrule
+\end{tabular}
+\end{table}
+   
+Group 3 and 4 - hydrophobic amino acids.  
+   \end{frame}
+  
+  
+     \begin{frame}{The best-perfoming reduced alphabet}
+   \begin{table}[ht]
+\centering
+\begin{tabular}{rl}
+  \toprule
+Subgroup ID & Amino acids \\ 
+  \midrule
+  1 & G \\ 
+   \rowcolor{red!20}  2 & K, P, R \\ 
+    3 & I, L, V \\ 
+   \rowcolor[gray]{0.85}  4 & F, W, Y \\ 
+    5 & A, C, H, M \\ 
+   \rowcolor[gray]{0.85}  6 & D, E, N, Q, S, T \\ 
+   \bottomrule
+\end{tabular}
+\end{table}
+   
+Group 2 - charged breakers of $\beta$-structures.  
+   
+   \end{frame}  
+  
+%'     \begin{frame}{Cross-validation}
+%'   <<echo = FALSE, message=FALSE,warning=FALSE,fig.align='center',fig.width=14,fig.height=7>>=
+%' subdat <- filter(amyloids_plot, pos == "Training peptide length: 6-10")
+%' 
+%' ggplot(subdat, aes(x = len_range, y = AUC_mean)) +
+%'   geom_boxplot(outlier.color = "grey", outlier.shape = 16, outlier.size = 5) +
+%'   geom_point(data = filter(subdat, et != "Reduced alphabet"), 
+%'              aes(x = len_range, y = AUC_mean, color = et, shape = et), size = 5) +
+%'   scale_x_discrete("") +
+%'   scale_y_continuous("Mean AUC") +
+%'   scale_shape_manual("", values = c(16, 16, 15, 15), drop = FALSE) +
+%'   scale_color_manual("", values = c("red", "grey", "green", "blue"), drop = FALSE) +
+%'   guides(color = guide_legend(nrow = 2), shape = guide_legend(nrow = 2)) + 
+%'   #facet_wrap(~ pos, nrow = 3) +
+%'   ggtitle("Training peptide length: 6-10") + 
+%'   my_theme + 
+%'   coord_flip() +
+%'   theme(plot.title = element_text(color = "red"))
+%' 
+%' 
+%' @
+%'   \tiny
+%' Hinges of boxes correspond to 
+%' the 0.25 and 0.75 quartiles. The bar inside the box represents the median. The 
+%' gray circles correspond to the reduced alphabets with the AUC outside the 0.95 
+%' confidence interval.
+%' 
+%'   \end{frame}
+
+%'     \begin{frame}{}
+%'   <<echo = FALSE, message=FALSE,warning=FALSE,fig.align='center',fig.width=14,fig.height=7>>=
+%' subdat <- filter(amyloids_plot, pos == "Training peptide length: 6-15")
+%' 
+%' ggplot(subdat, aes(x = len_range, y = AUC_mean)) +
+%'   geom_boxplot(outlier.color = "grey", outlier.shape = 16, outlier.size = 5) +
+%'   geom_point(data = filter(subdat, et != "Reduced alphabet"), 
+%'              aes(x = len_range, y = AUC_mean, color = et, shape = et), size = 5) +
+%'   scale_x_discrete("") +
+%'   scale_y_continuous("Mean AUC") +
+%'   scale_shape_manual("", values = c(16, 16, 15, 15), drop = FALSE) +
+%'   scale_color_manual("", values = c("red", "grey", "green", "blue"), drop = FALSE) +
+%'   guides(color = guide_legend(nrow = 2), shape = guide_legend(nrow = 2)) + 
+%'   #facet_wrap(~ pos, nrow = 3) +
+%'   ggtitle("Training peptide length: 6-15") + 
+%'   my_theme + 
+%'   coord_flip()
+%' 
+%' 
+%' @
+%'   \end{frame}  
+
+
+\begin{frame}{Alphabet similarity and performance}
+Is the best-performing reduced amino alphabet associated with amyloidogenicity?
+\end{frame}
+
+\begin{frame}{Similarity index}
+<<echo = FALSE,message=FALSE,fig.align='center',fig.width=14,fig.height=6.3,warning=FALSE>>=
+si_dat <- read.csv2("si_dat.csv")
+
+levels(si_dat[["et"]]) <- c("Best-performing reduced alphabet", 
+                            "Reduced alphabet", "Full alphabet", 
+                            "Standard reduced alphabet", 
+                            "Standard reduced alphabet")
+
+
+simil_plot <- ggplot(si_dat, aes(x=si, y=AUC_mean)) + 
+  # geom_point(data = si_dat, 
+  #            aes(x = si, y = AUC_mean, color = et, shape = et), size = 4) +
+  #geom_density_2d(color = "black", contour = TRUE) +
+    geom_bin2d(bins = 30) +
+  # stat_density2d(aes(fill=..level..), color = "black",
+  #                contour = TRUE, geom = "polygon", alpha = 0.5, binwidth = 50, bins = 10) +
+  scale_fill_continuous("Count", low = "gold", high = "goldenrod4") +
+  xlab("Similarity index") +
+  ylab("AUC") +
+  my_theme +
+  geom_point(data = droplevels(filter(si_dat, et != "Reduced alphabet")),
+             aes(x = si, y = AUC_mean, color = et, shape = et), size = 4) +
+  guides(color = guide_legend(nrow = 2), shape = guide_legend(nrow = 2), 
+         fill = guide_colorbar(barwidth = unit(50, "line"))) +
+  scale_shape_manual("", values = c(16, 15, 15), drop = FALSE) +
+  scale_color_manual("", values = c("red", "green", "blue"), drop = FALSE) +
+  theme(panel.grid.major = element_line(color = "lightgrey", size = 0.5)) 
+
+print(simil_plot)
+@
+Similarity index~\citep{stephenson_unearthing_2013} measures the similarity between two reduced alphabets (1 - identical, 0, totally dissimilar).
+
+The color of a square is proportional to the number of reduced alphabets in its area.
+\end{frame}
+
+\begin{frame}{Similarity index}
+<<echo = FALSE,message=FALSE,fig.align='center',fig.width=14,fig.height=6.3,warning=FALSE>>=
+print(simil_plot)
+@
+The correlation between mean AUC an similarity index is significant ($\textrm{p-value} \leq 2.2^{-16}$; $\rho = 0.51$).
+\end{frame}
+
+\section{Knowledge-discovery}
+
+\begin{frame}{}
+Are informative n-grams found by QuiPT associated with amyloidogenicity?
+\end{frame}
+
+
+\begin{frame}{Informative n-grams}
+<<echo = FALSE,message=FALSE,fig.align='center',fig.width=14,fig.height=6,warning=FALSE>>=
+ngram_freq <- read.csv("ngram_freq.csv")
+
+ngram_freq_plot <- mutate(ngram_freq, decoded_name = gsub("_", "-", decoded_name)) %>%
+  mutate(decoded_name = factor(decoded_name, levels = as.character(decoded_name)),
+         amyloid = diff_freq > 0) %>%
+  melt() %>%
+  filter(variable %in% c("pos", "neg"),
+         association != "Not found") %>%
+  droplevels %>%
+  mutate(variable = factor(variable, labels = c("Amyloid", "Non-amyloid")))
+
+ggplot(ngram_freq_plot, aes(x = decoded_name, y = value)) +
+  geom_bar(aes(fill = variable), position = "dodge", stat = "identity") +
+  geom_point(data = group_by(ngram_freq_plot, decoded_name)  %>% filter(value == max(value)),
+             aes(y = value + 0.004, shape = association), size = 6) +
+  scale_fill_manual("", values = c("gold", "darkmagenta")) +
+  scale_shape_manual("Motif:", breaks = c("Amyloidogenic", "Non-amyloidogenic"), values = c(16, 17, NA)) +
+  scale_y_continuous("Frequency") +
+  scale_x_discrete("") +
+  my_theme +
+  theme(panel.grid.major.y = element_line(color = "lightgrey", size = 0.5)) 
+
+@
+
+Out of 65 the most informative n-grams, 15 (23\%) were also found in the motifs validated experimentally~\citep{paz_sequence_2004}.
+\end{frame}
+
+
+\section{Benchmark and summary}
+
+\begin{frame}
+Is performance of the AmyloGram, the classifier based on the best-performing reduced amino acid alphabet, also adequate on the independent dataset?
+\end{frame}
+
+
+\begin{frame}{Benchmark results}
+
+\begin{table}[ht]
+\centering
+
+\begin{tabular}{ccccc}
+  \toprule
+Classifier & AUC & MCC \\ 
+  \midrule
+AmyloGram & \textbf{0.8972} & \textbf{0.6307} \\ 
+  \rowcolor{white}PASTA 2.0 \citep{walsh_pasta_2014} & 0.8550 & 0.4291  \\ 
+   FoldAmyloid \citep{garbuzynskiy_foldamyloid:_2010} & 0.7351 & 0.4526  \\ 
+  \rowcolor{white}APPNN \citep{familia_prediction_2015} & 0.8343 & 0.5823  \\ 
+   \bottomrule
+\end{tabular}
+\end{table}
+
+The predictor based on the best-performing alphabet, called AmyloGram, was benchmarked against the most popular tools for the detection of amyloid peptides using an external data set \textit{pep424}.
+
+\end{frame}
+
+\begin{frame}{Summary}
+
+We identified a group of reduced amino acid alphabets which capture properties of amyloids. 
+
+Our algorithm was also capable of extracting n-gram associated with amyloidogenicity, partially confirming experimental results.
+
+Our software is available as a web-server: \url{http://www.smorfland.uni.wroc.pl/shiny/AmyloGram/}.
+
+\end{frame}
 
 \begin{frame}{Summary} 
 
@@ -617,30 +982,40 @@ biogram workflow:
 \url{http://github.com/michbur/biogram} (1.4)
 \end{frame}  
 
-\begin{frame}{Case study}
-
-Burdukiewicz M, Sobczyk P, Rödiger S, Duda-Madej A, Mackiewicz P, Kotulska M. (2016) \textbf{Prediction of amyloidogenicity based on the n-gram analysis.} \textit{PeerJ Preprints} 4:e2390v1 \url{https://doi.org/10.7287/peerj.preprints.2390v1}
-
-A novel method of detecting amyloids, proteins involded in many neurodegenerative disorders, such as Alzheimer's or Creutzfeldt-Jakob's diseases based on n-grams used to train a random forest classifier (from the \textit{ranger} package).
-
-
-\end{frame}
 
 \begin{frame}{Acknowledgements and funding}
 
 This research was partially funded by the KNOW Consortium and National Science Center (2015/17/N/NZ2/01845).
 
+\small{
 \begin{itemize}
+\item Małgorzata Kotulska.
 \item Paweł Mackiewicz,
-\item Małgorzata Kotulska,
+\item Stefan R\"{o}diger,
 \item \textbf{biogram} package (\url{https://cran.r-project.org/package=biogram}):
 \begin{itemize}
 \small
 \item Piotr Sobczyk,
-\item Chris Lauber.
-\end{itemize}
+\item Chris Lauber,
 \end{itemize}
 
+\item \textbf{AmyLoad} database (\url{comprec-lin.iiar.pwr.edu.pl/amyload}):
+\begin{itemize}
+\small
+\item Paweł Woźniak,
+\end{itemize}
+\end{itemize}
+}
+
 \end{frame}
- 
+
+
+
+\begin{frame}[allowframebreaks]
+        \frametitle{References}
+  \bibliographystyle{apalike}
+  \bibliography{references}
+\end{frame}  
+
+
 \end{document}
